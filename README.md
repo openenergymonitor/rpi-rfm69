@@ -4,6 +4,8 @@ This is a fork of v0.3.0 of the jgillula/rpi-rfm69 library. v0.3.0 choosen due t
 
 A few minor modifications have been made to provide compatibility with prototype hardware that has a custom chip select pin. There's also a method to pop one item off the packet queue at one time, needed for compatibility with EmonHub.
 
+I may well upgrade this to the latest version of jgillula/rpi-rfm69 at some point, especially after switching to the standard chip select pin.
+
 ### RFM69 Radio interface for the Raspberry Pi
 This package provides a Python wrapper of the [LowPowerLabs RFM69 library](https://github.com/LowPowerLab/RFM69) and is largely based on the work of [Eric Trombly](https://github.com/etrombly/RFM69) who ported the library from C.
 
