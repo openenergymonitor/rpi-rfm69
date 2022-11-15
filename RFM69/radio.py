@@ -40,7 +40,7 @@ class Radio(object):
         self.isRFM69HW = kwargs.get('isHighPower', True)
         self.intPin = kwargs.get('interruptPin', 18)
         self.rstPin = kwargs.get('resetPin', 29)
-        self.selPin = 16
+        self.selPin = 16 # 26
         self.spiBus = kwargs.get('spiBus', 0)
         self.spiDevice = kwargs.get('spiDevice', 0)
         self.promiscuousMode = kwargs.get('promiscuousMode', 0)
@@ -308,6 +308,16 @@ class Radio(object):
         self.packets = []
         return packets
 
+    def get_packet(self):
+        """Get newly received packet.
+
+        Returns:
+            list: Returns a single RFM69.Packet.
+        """
+        if len(self.packets):
+            return self.packets.pop(0)
+        else:
+            return False
    
     def send_ack(self, toAddress, buff = ""):
         """Send an acknowledgemet packet
@@ -411,7 +421,7 @@ class Radio(object):
             time.sleep(0.01)
             pass # make sure packet is sent before putting more into the FIFO
         
-        self._setMode(RF69_MODE_RX)
+        self._setMode(RF69_MODE_RX) # or should this be RF69_MODE_STANDBY?
 
     def _readRSSI(self, forceTrigger = False):
         rssi = 0
