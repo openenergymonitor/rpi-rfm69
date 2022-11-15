@@ -40,6 +40,7 @@ class Radio(object):
         self.isRFM69HW = kwargs.get('isHighPower', True)
         self.intPin = kwargs.get('interruptPin', 18)
         self.rstPin = kwargs.get('resetPin', 29)
+        self.selPin = 16
         self.spiBus = kwargs.get('spiBus', 0)
         self.spiDevice = kwargs.get('spiDevice', 0)
         self.promiscuousMode = kwargs.get('promiscuousMode', 0)
@@ -88,20 +89,30 @@ class Radio(object):
     def _init_gpio(self):
         GPIO.setmode(GPIO.BOARD)
         GPIO.setup(self.intPin, GPIO.IN)
-        GPIO.setup(self.rstPin, GPIO.OUT)
+        if self.rstPin:
+            GPIO.setup(self.rstPin, GPIO.OUT)
+        GPIO.setup(self.selPin, GPIO.OUT)
 
     def _init_spi(self):
         #initialize SPI
         self.spi = spidev.SpiDev()
         self.spi.open(self.spiBus, self.spiDevice)
         self.spi.max_speed_hz = 4000000
+        self.spi.no_cs = True
+
+    def select(self):
+        GPIO.output(self.selPin, GPIO.LOW)
+
+    def unselect(self):
+        GPIO.output(self.selPin, GPIO.HIGH)
 
     def _reset_radio(self):
         # Hard reset the RFM module
-        GPIO.output(self.rstPin, GPIO.HIGH)
-        time.sleep(0.3)
-        GPIO.output(self.rstPin, GPIO.LOW)
-        time.sleep(0.3)
+        if self.rstPin:
+            GPIO.output(self.rstPin, GPIO.HIGH)
+            time.sleep(0.3)
+            GPIO.output(self.rstPin, GPIO.LOW)
+            time.sleep(0.3)
         #verify chip is syncing?
         start = time.time()
         while self._readReg(REG_SYNCVALUE1) != 0xAA:
@@ -387,19 +398,19 @@ class Radio(object):
             ack = 0x80
         elif requestACK:
             ack = 0x40
+        self.select()
         if isinstance(buff, str):
             self.spi.xfer2([REG_FIFO | 0x80, len(buff) + 3, toAddress, self.address, ack] + [int(ord(i)) for i in list(buff)])
         else:
             self.spi.xfer2([REG_FIFO | 0x80, len(buff) + 3, toAddress, self.address, ack] + buff)
+        self.unselect()
 
         self.sendLock = True
         self._setMode(RF69_MODE_TX)
-        slept = 0
-        while self.sendLock:
-            time.sleep(self.sendSleepTime)
-            slept += self.sendSleepTime
-            if slept > 1.0:
-                break
+        while ((self._readReg(REG_IRQFLAGS2) & RF_IRQFLAGS2_PACKETSENT) == 0x00):
+            time.sleep(0.01)
+            pass # make sure packet is sent before putting more into the FIFO
+        
         self._setMode(RF69_MODE_RX)
 
     def _readRSSI(self, forceTrigger = False):
@@ -416,17 +427,24 @@ class Radio(object):
         self._setMode(RF69_MODE_STANDBY)
         if key != 0 and len(key) == 16:
             self._encryptKey = key
+            self.select()
             self.spi.xfer([REG_AESKEY1 | 0x80] + [int(ord(i)) for i in list(key)])
+            self.unselect()
             self._writeReg(REG_PACKETCONFIG2,(self._readReg(REG_PACKETCONFIG2) & 0xFE) | RF_PACKET2_AES_ON)
         else:
             self._encryptKey = None
             self._writeReg(REG_PACKETCONFIG2,(self._readReg(REG_PACKETCONFIG2) & 0xFE) | RF_PACKET2_AES_OFF)
 
     def _readReg(self, addr):
-        return self.spi.xfer([addr & 0x7F, 0])[1]
+        self.select()
+        regval = self.spi.xfer([addr & 0x7F, 0])[1]
+        self.unselect()
+        return regval
 
     def _writeReg(self, addr, value):
+        self.select()
         self.spi.xfer([addr | 0x80, value])
+        self.unselect()
 
     def _promiscuous(self, onOff):
         self.promiscuousMode = onOff
@@ -494,7 +512,9 @@ class Radio(object):
         if self.mode == RF69_MODE_RX and self._readReg(REG_IRQFLAGS2) & RF_IRQFLAGS2_PAYLOADREADY:
             self._setMode(RF69_MODE_STANDBY)
         
+            self.select()
             payload_length, target_id, sender_id, CTLbyte = self.spi.xfer2([REG_FIFO & 0x7f,0,0,0,0])[1:]
+            self.unselect()
         
             if payload_length > 66:
                 payload_length = 66
@@ -508,7 +528,9 @@ class Radio(object):
             data_length = payload_length - 3
             ack_received  = bool(CTLbyte & 0x80)
             ack_requested = bool(CTLbyte & 0x40)
+            self.select()
             data = self.spi.xfer2([REG_FIFO & 0x7f] + [0 for i in range(0, data_length)])[1:]
+            self.unselect()
             rssi = self._readRSSI()
 
             if ack_received:
