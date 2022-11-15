@@ -1,5 +1,7 @@
 # OpenEnergyMonitor fork of jgillula/rpi-rfm69 (v0.3.0)
 
+Note from Trystan:
+
 This is a fork of v0.3.0 of the jgillula/rpi-rfm69 library. v0.3.0 choosen due to simpler packet queue design without the more recent work on making the library thread safe. Im not 100% sure if this is the best choice but have found it easier to work with so far within the context of the EmonHub application, which has it's own layer of threading already. I am not trying to send and receive in different threads at the moment so will see were we get to with this..
 
 A few minor modifications have been made to provide compatibility with prototype hardware that has a custom chip select pin. There's also a method to pop one item off the packet queue at one time, needed for compatibility with EmonHub.
