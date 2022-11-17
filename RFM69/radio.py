@@ -40,7 +40,7 @@ class Radio(object):
         self.isRFM69HW = kwargs.get('isHighPower', True)
         self.intPin = kwargs.get('interruptPin', 18)
         self.rstPin = kwargs.get('resetPin', 29)
-        self.selPin = 16 # 26
+        self.selPin = kwargs.get('selPin', 16)
         self.spiBus = kwargs.get('spiBus', 0)
         self.spiDevice = kwargs.get('spiDevice', 0)
         self.promiscuousMode = kwargs.get('promiscuousMode', 0)
