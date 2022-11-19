@@ -65,19 +65,22 @@ class Radio(object):
 
         self._init_spi()
         self._init_gpio()
-        self._initialize(freqBand, nodeID, networkID)
-
-        self._encrypt(kwargs.get('encryptionKey', 0))
-        self.set_power_level(kwargs.get('power', 70))
+        self.init_success = self._initialize(freqBand, nodeID, networkID)
+        if self.init_success:
+            self._encrypt(kwargs.get('encryptionKey', 0))
+            self.set_power_level(kwargs.get('power', 70))
 
 
     def _initialize(self, freqBand, nodeID, networkID):
-        self._reset_radio()
+        if not self._reset_radio(): return False
+            
         self._set_config(get_config(freqBand, networkID))
         self._setHighPower(self.isRFM69HW)        
         # Wait for ModeReady
+        start = time.time()
         while (self._readReg(REG_IRQFLAGS1) & RF_IRQFLAGS1_MODEREADY) == 0x00:
-            pass
+            if time.time() - start > 1.0: 
+                return False
 
         self.address = nodeID
         self._freqBand = freqBand
@@ -117,13 +120,14 @@ class Radio(object):
         start = time.time()
         while self._readReg(REG_SYNCVALUE1) != 0xAA:
             self._writeReg(REG_SYNCVALUE1, 0xAA)
-            if time.time() - start > 15000:
-                raise Exception('Failed to sync with chip')
+            if time.time() - start > 0.1:
+                return False
         start = time.time()
         while self._readReg(REG_SYNCVALUE1) != 0x55:
             self._writeReg(REG_SYNCVALUE1, 0x55)
-            if time.time() - start > 15000:
-                raise Exception('Failed to sync with chip')
+            if time.time() - start > 0.1:
+                return False
+        return True
 
     def _set_config(self, config):
         for value in config.values():
