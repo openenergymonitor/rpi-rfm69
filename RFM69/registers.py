@@ -1084,7 +1084,7 @@ RF_DAGC_IMPROVED_LOWBETA0 = 0x30  # Recommended default
 #settings pulled from RFM69.h
 RF69_315MHZ = 31  # non trivial values to avoid misconfiguration
 RF69_433MHZ = 43
-RF69_433_92MHZ = 43392
+RF69_433_92MHZ = 49
 RF69_868MHZ = 86
 RF69_915MHZ = 91
 
